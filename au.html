@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Serene Chat - Guest</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* =========================================
+       1. CSS VARIABLES & RESET
+       ========================================= */
+    :root {
+      --purple: #5B5CEC;
+      --purple-dark: #4040d0;
+      --purple-light: #7C7CF5;
+      --purple-bg: #f0f0ff;
+      --purple-glow: rgba(91,92,236,0.15);
+      --bg: #f7f8fc;
+      --surface: #ffffff;
+      --border: #ebebf5;
+      --text: #1a1a2e;
+      --text-muted: #7a7a9a;
+      --text-dim: #b0b0c8;
+      --danger: #ff4d6a;
+      --warning-bg: #fff8ec;
+      --warning-border: #ffd580;
+      --warning-text: #a06000;
+      --font: 'Nunito', sans-serif;
+    }
+
+    *, *::before, *::after { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+    }
+
+    body { 
+      font-family: var(--font); 
+      background: var(--bg); 
+      color: var(--text); 
+      min-height: 100vh; 
+      display: flex; 
+      align-items: flex-start; 
+      justify-content: center; 
+      padding: 28px 16px 100px; 
+    }
+
+    .wrap { 
+      width: 100%; 
+      max-width: 400px; 
+    }
+
+    /* =========================================
+       2. HEADER & GREETING
+       ========================================= */
+    .greeting { margin-bottom: 24px; }
+    
+    .greeting-row { 
+      display: flex; 
+      align-items: flex-start; 
+      justify-content: space-between; 
+      gap: 12px; 
+    }
+    
+    .greeting .hello { 
+      font-size: 14px; color: var(--text-muted); font-weight: 600; 
+    }
+    
+    .greeting h1 { 
+      font-size: 28px; font-weight: 800; color: var(--text); 
+      margin-top: 2px; line-height: 1.2; 
+    }
+    
+    .avatar-circle { 
+      width: 48px; height: 48px; border-radius: 50%; 
+      overflow: hidden; border: 3px solid var(--border); 
+      flex-shrink: 0; background: var(--purple-bg); 
+    }
+    
+    .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* =========================================
+       3. GUEST WARNING BANNER
+       ========================================= */
+    .guest-banner { 
+      background: var(--warning-bg); border: 1.5px solid var(--warning-border); 
+      border-radius: 16px; padding: 14px 16px; margin-bottom: 18px; 
+      display: flex; align-items: center; gap: 12px; 
+    }
+    
+    .guest-banner-icon { font-size: 28px; flex-shrink: 0; }
+    .guest-banner-text { flex: 1; }
+    
+    .guest-banner-text strong { 
+      display: block; font-size: 13px; font-weight: 800; color: var(--warning-text); 
+    }
+    
+    .guest-banner-text span { 
+      font-size: 12px; color: #b87a00; font-weight: 600; margin-top: 2px; display: block; 
+    }
+    
+    .guest-banner-btn { 
+      background: var(--purple); color: #fff; border: none; border-radius: 10px; 
+      padding: 9px 14px; font-size: 12px; font-weight: 800; font-family: var(--font); 
+      cursor: pointer; white-space: nowrap; transition: 0.2s; flex-shrink: 0; 
+    }
+    
+    .guest-banner-btn:hover { background: var(--purple-dark); transform: translateY(-1px); }
+
+    /* =========================================
+       4. SEARCH & INPUTS
+       ========================================= */
+    .search-bar { 
+      position: relative; margin-bottom: 24px; 
+    }
+    
+    .search-bar input { 
+      width: 100%; padding: 14px 18px 14px 46px; 
+      background: var(--surface); border: 1.5px solid var(--border); 
+      border-radius: 16px; color: var(--text); font-size: 14px; 
+      font-family: var(--font); font-weight: 600; outline: none; 
+      transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+    }
+    
+    .search-bar input::placeholder { color: var(--text-dim); font-weight: 500; }
+    .search-bar input:focus { border-color: var(--purple); box-shadow: 0 0 0 4px var(--purple-glow); }
+    .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 16px; pointer-events: none; }
+
+    /* =========================================
+       5. NOTIFICATIONS & LINKS
+       ========================================= */
+    .no-history-note { 
+      background: var(--surface); border: 1.5px solid var(--border); 
+      border-radius: 18px; padding: 24px 20px; text-align: center; 
+      margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+    }
+    
+    .no-history-note .note-icon { font-size: 36px; margin-bottom: 10px; }
+    .no-history-note p { font-size: 13px; color: var(--text-muted); font-weight: 600; line-height: 1.7; }
+    .no-history-note a { color: var(--purple); text-decoration: none; font-weight: 800; }
+    .no-history-note a:hover { text-decoration: underline; }
+
+    .exit-link { 
+      text-align: center; font-size: 12px; color: var(--text-dim); 
+      font-weight: 600; margin-top: 24px; 
+    }
+    .exit-link a { color: var(--danger); text-decoration: none; font-weight: 700; }
+    .exit-link a:hover { text-decoration: underline; }
+
+    /* =========================================
+       6. FLOATING ACTION BUTTON (FAB)
+       ========================================= */
+    .fab { 
+      position: fixed; bottom: 28px; right: 28px; 
+      width: 58px; height: 58px; border-radius: 50%; 
+      background: linear-gradient(135deg, var(--purple), var(--purple-light)); 
+      border: none; cursor: pointer; display: flex; align-items: center; 
+      justify-content: center; font-size: 26px; color: white; 
+      box-shadow: 0 8px 28px rgba(91,92,236,0.45); transition: all 0.2s; z-index: 100; 
+    }
+    
+    .fab:hover { transform: scale(1.1) rotate(10deg); }
+
+    /* =========================================
+       7. LOADING OVERLAY
+       ========================================= */
+    .overlay { 
+      position: fixed; inset: 0; background: rgba(26,26,46,0.6); 
+      backdrop-filter: blur(8px); z-index: 9999; display: flex; 
+      flex-direction: column; justify-content: center; align-items: center; padding: 24px; 
+    }
+    
+    #loadingOverlay { display: flex; }
+    
+    .spinner { 
+      width: 38px; height: 38px; border: 3px solid var(--border); 
+      border-top-color: var(--purple); border-radius: 50%; 
+      animation: spin 0.8s linear infinite; margin: 0 auto 16px; 
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div id="loadingOverlay" class="overlay">
+    <div class="spinner"></div>
+    <p style="color:#7a7a9a; font-size:14px; font-weight:700;">Loading…</p>
+  </div>
+
+  <div class="wrap" id="mainContent" style="display:none;">
+
+    <div class="greeting">
+      <div class="greeting-row">
+        <div>
+          <div class="hello">Hello,</div>
+          <h1>Guest 👋</h1>
+        </div>
+        <div class="avatar-circle">
+          <img id="userAvatar" src="" alt="avatar">
+        </div>
+      </div>
+    </div>
+
+    <div class="guest-banner">
+      <div class="guest-banner-icon">👤</div>
+      <div class="guest-banner-text">
+        <strong>You're browsing as a Guest</strong>
+        <span>Sign up to save rooms &amp; chat history</span>
+      </div>
+      <button class="guest-banner-btn" onclick="window.location.href='register.html'">Sign Up</button>
+    </div>
+
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input id="roomInput" placeholder="Enter room name or code to join…" onkeydown="if(event.key==='Enter') joinRoom()" />
+    </div>
+
+    <div class="no-history-note">
+      <div class="note-icon">📂</div>
+      <p>
+        Guest sessions don't save room history.<br>
+        Use the + button to create a new room.
+      </p>
+    </div>
+
+    <div class="exit-link">
+      <a href="#" onclick="signOut(); return false;">Exit guest session</a>
+    </div>
+
+  </div>
+
+  <button class="fab" onclick="createRoom()" title="New Room">＋</button>
+
+  <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  
+  <script>
+    /** * AUTHENTICATION OBSERVER
+     * Checks if the user is a valid anonymous guest.
+     */
+    firebase.auth().onAuthStateChanged((user) => {
+      document.getElementById("loadingOverlay").style.display = "none";
+      
+      // Route protections
+      if (!user) { 
+        window.location.replace("login.html"); 
+        return; 
+      }
+      if (!user.isAnonymous) { 
+        window.location.replace("vu.html"); 
+        return; 
+      }
+
+      // Generate anonymous avatar and show content
+      document.getElementById("userAvatar").src = `https://api.dicebear.com/7.x/personas/svg?seed=${user.uid}`;
+      document.getElementById("mainContent").style.display = "block";
+    });
+
+    /** * CREATE NEW ROOM
+     */
+    function createRoom() {
+      const id = Math.random().toString(36).substring(2,8) + "-" + Math.random().toString(36).substring(2,6);
+      window.location.href = `room.html?room=${id}`;
+    }
+
+    /** * JOIN EXISTING ROOM
+     */
+    function joinRoom() {
+      const room = document.getElementById("roomInput").value.trim();
+      if (room) {
+        window.location.href = `room.html?room=${room}`;
+      } else {
+        alert("Please enter a room name or code first.");
+      }
+    }
+
+    /** * SIGN OUT (Deletes anonymous session)
+     */
+    function signOut() {
+      firebase.auth().signOut().then(() => window.location.replace("login.html"));
+    }
+  </script>
+</body>
+</html>
