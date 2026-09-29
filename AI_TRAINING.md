@@ -1,113 +1,104 @@
-# Panduan Training AI Serene Chat
+# Serene Chat AI Training Guide
 
-Panduan ini menerangkan cara download dataset, train model, melihat model dan
-menguji model di localhost. Arahan ditulis untuk Windows PowerShell.
+This guide explains how to download the dataset, train the model, view the model, and test it on localhost. The instructions are written for Windows PowerShell.
 
-## Panduan paling ringkas untuk kawan yang baru pull
+## Quickest guide for friends who just pulled
 
-Terdapat dua perkara berbeza:
+There are two different scenarios:
 
 ```text
-Guna AI sedia ada       Tidak perlu CSV dan tidak perlu train
-Train AI versi baru     Perlu CSV Kaggle dan jalankan script training
+Use existing AI        No CSV needed and no training needed
+Train new AI version   Needs Kaggle CSV and run training script
 ```
 
-### Jika hanya mahu guna dan test AI sedia ada
+### If you just want to use and test the existing AI
 
-1. Clone repository atau jalankan `git pull`.
-2. Buka terminal dalam folder `firebase-chat`.
-3. Pasang dependency projek:
+1. Clone the repository or run `git pull`.
+2. Open your terminal in the `firebase-chat` folder.
+3. Install project dependencies:
 
 ```powershell
 npm install
 ```
 
-4. Hidupkan website:
+4. Start the website:
 
 ```powershell
 firebase.cmd emulators:start --only hosting
 ```
 
-Jika komputer belum mempunyai Firebase CLI, pasang sekali dahulu:
+If your computer doesn't have the Firebase CLI yet, install it first:
 
 ```powershell
 npm install -g firebase-tools
 ```
 
-5. Buka URL yang dipaparkan dalam terminal.
-6. Login, cipta atau masuk bilik chat.
-7. Pastikan status menunjukkan `AI Active · Trained`.
+5. Open the URL displayed in the terminal.
+6. Login, create, or enter a chat room.
+7. Ensure the status shows `AI Active · Trained`.
 
-Itu sahaja untuk penggunaan biasa. Model telah tersedia di:
+That is all for normal usage. The model is already available at:
 
 ```text
 frontend/public/models/risk-classifier.json
 ```
 
-Dataset Kaggle tidak diperlukan kerana dataset hanya digunakan untuk mengajar
-model. Selepas belajar, website menggunakan hasil pembelajaran dalam fail JSON.
-Bayangkan CSV seperti buku latihan dan model JSON seperti nota yang sudah dipelajari:
-website hanya membawa nota, bukan keseluruhan buku.
+The Kaggle dataset is not required because the dataset is only used for teaching the model. After learning, the website uses the learning results stored in the JSON file. Think of the CSV as an exercise book and the JSON model as the studied notes: the website only brings the notes, not the entire book.
 
-### Status semasa yang perlu diketahui
+### Current status you need to know
 
-Model JSON sekarang datang daripada 100 rows:
+The current JSON model comes from 100 rows:
 
 ```text
-50 contoh suicide + 50 contoh non-suicide = 100 rows
-80 rows digunakan untuk training
-20 rows digunakan untuk validation
+50 suicide examples + 50 non-suicide examples = 100 rows
+80 rows used for training
+20 rows used for validation
 ```
 
-Model ini sesuai untuk demo, memastikan integrasi berfungsi dan memulakan ujian.
-Ia belum patut dianggap tepat kerana 100 contoh terlalu kecil dan kebanyakannya
-English. Langkah seterusnya ialah test dengan ayat Melayu/Manglish, catat kesalahan
-dan kemudian train semula menggunakan lebih banyak data.
+This model is suitable for a demo, verifying that the integration works, and initiating testing. It shouldn't be considered accurate yet because 100 examples is far too small, and they are mostly in English. The next step is to test it with Malay/Manglish sentences, record the errors, and then retrain it using more data.
 
-### Cara berhentikan localhost
+### How to stop localhost
 
-Pergi ke terminal yang menjalankan Firebase dan tekan:
+Go to the terminal running Firebase and press:
 
 ```text
 Ctrl+C
 ```
 
-Bahagian selepas ini hanya diperlukan jika mahu memahami atau train semula AI.
+The sections after this are only needed if you want to understand or retrain the AI.
 
-## 1. Faham bahagian penting dahulu
+## 1. Understand the important parts first
 
-Projek ini menggunakan:
+This project uses:
 
-- **TensorFlow.js** untuk menjalankan AI menggunakan JavaScript.
-- **Universal Sentence Encoder (USE)** untuk menukar ayat kepada 512 nombor.
-- **Logistic regression** untuk memberi skor risiko antara 0 hingga 1.
-- **Regex dan kamus Manglish** sebagai perlindungan tambahan.
+- **TensorFlow.js** to run the AI using JavaScript.
+- **Universal Sentence Encoder (USE)** to convert sentences into 512 numbers.
+- **Logistic regression** to give a risk score between 0 and 1.
+- **Regex and Manglish dictionary** as an additional safeguard.
 
-Dataset tidak dimasukkan terus ke dalam website. Dataset hanya digunakan semasa
-training. Hasil training ialah satu fail kecil:
+The dataset is not embedded directly into the website. The dataset is only used during training. The output of the training is a small file:
 
 ```text
 frontend/public/models/risk-classifier.json
 ```
 
-Website hanya memerlukan fail JSON tersebut, bukan fail CSV yang besar.
+The website only requires that JSON file, not the large CSV file.
 
-## 2. Download dataset Kaggle
+## 2. Download the Kaggle dataset
 
-Dataset yang digunakan:
+The dataset used is:
 
 ```text
 https://www.kaggle.com/datasets/nikhileswarkomati/suicide-watch
 ```
 
-Cara paling mudah ialah download ZIP melalui browser, kemudian extract fail
-`Suicide_Detection.csv` ke lokasi berikut:
+The easiest way is to download the ZIP via browser, then extract the `Suicide_Detection.csv` file to the following location:
 
 ```text
 training-data/Suicide_Detection.csv
 ```
 
-Struktur yang betul:
+The correct structure:
 
 ```text
 firebase-chat/
@@ -115,150 +106,140 @@ firebase-chat/
     Suicide_Detection.csv
 ```
 
-Pilihan lain, jika Kaggle CLI sudah dipasang dan login:
+Alternatively, if the Kaggle CLI is already installed and logged in:
 
 ```powershell
 New-Item -ItemType Directory -Force training-data
 kaggle datasets download -d nikhileswarkomati/suicide-watch -p training-data --unzip
 ```
 
-`training-data/` telah di-ignore oleh Git. Jangan pindahkan CSV ke
-`frontend/public`, kerana folder itu akan diterbitkan ke website.
+`training-data/` has been ignored by Git. Do not move the CSV to `frontend/public`, because that folder will be published to the website.
 
-## 3. Pasang dependency
+## 3. Install dependencies
 
-Pastikan Node.js 18 atau lebih baru telah dipasang. Dari folder utama projek:
+Ensure Node.js 18 or newer is installed. From the main project folder:
 
 ```powershell
 npm install
 ```
 
-Arahan ini memasang TensorFlow.js, Universal Sentence Encoder dan pembaca CSV.
-`node_modules/` tidak akan dimasukkan ke GitHub.
+This command installs TensorFlow.js, Universal Sentence Encoder, and the CSV reader. `node_modules/` will not be pushed to GitHub.
 
-## 4. Train model kecil dahulu
+## 4. Train a small model first
 
-Untuk ujian pertama, gunakan 100 baris keseluruhan:
+For the first test, use 100 rows in total:
 
 ```powershell
 npm run ai:train -- --samples 50 --epochs 10
 ```
 
-Perhatian: `--samples` ialah bilangan untuk **setiap class**. Jadi:
+Note: `--samples` is the amount for **each class**. So:
 
 ```text
 --samples 50
 = 50 suicide + 50 non-suicide
-= 100 baris keseluruhan
+= 100 total rows
 ```
 
-Script akan:
+The script will:
 
-1. Membaca CSV.
-2. Memilih bilangan data yang seimbang.
-3. Mengasingkan 80% untuk training dan 20% untuk validation.
-4. Menukar teks kepada embedding USE.
-5. Melatih classifier selama 10 epochs.
-6. Memilih threshold berdasarkan validation set.
-7. Menulis model ke `frontend/public/models/risk-classifier.json`.
+1. Read the CSV.
+2. Select a balanced amount of data.
+3. Split 80% for training and 20% for validation.
+4. Convert text to USE embeddings.
+5. Train the classifier for 10 epochs.
+6. Select thresholds based on the validation set.
+7. Write the model to `frontend/public/models/risk-classifier.json`.
 
-Proses embedding mungkin mengambil masa beberapa minit pada CPU. Jangan tutup
-terminal selagi mesej `Saved browser classifier` belum muncul.
+The embedding process may take a few minutes on the CPU. Do not close the terminal until the `Saved browser classifier` message appears.
 
-## 5. Maksud samples dan epochs
+## 5. Meaning of samples and epochs
 
-`samples` menentukan jumlah data bagi setiap class. Lebih banyak data biasanya
-memberi contoh yang lebih pelbagai, tetapi mengambil masa lebih lama.
+`samples` determines the amount of data for each class. More data usually provides more diverse examples but takes a longer time.
 
-`epochs` ialah berapa kali classifier belajar semula daripada data training.
-Terlalu sedikit mungkin belum cukup belajar. Terlalu banyak pada dataset kecil
-boleh menyebabkan model menghafal data.
+`epochs` is how many times the classifier relearns from the training data. Too few might mean it hasn't learned enough. Too many on a small dataset can cause the model to memorize the data (overfitting).
 
-Cadangan penggunaan:
+Usage suggestions:
 
 ```powershell
-# Ujian fungsi: 100 baris total
+# Function test: 100 total rows
 npm run ai:train -- --samples 50 --epochs 10
 
-# Eksperimen kecil: 2,000 baris total
+# Small experiment: 2,000 total rows
 npm run ai:train -- --samples 1000 --epochs 15
 
-# Eksperimen lebih baik: 10,000 baris total
+# Better experiment: 10,000 total rows
 npm run ai:train -- --samples 5000 --epochs 20
 
-# Training besar: 40,000 baris total
+# Large training: 40,000 total rows
 npm run ai:train -- --samples 20000 --epochs 20
 ```
 
-Naikkan jumlah secara perlahan. Pastikan model kecil berfungsi sebelum menjalankan
-training yang mengambil masa lama.
+Increase the amount gradually. Ensure the small model works before running training that takes a long time.
 
-## 6. Periksa model selepas training
+## 6. Check the model after training
 
-Jalankan:
+Run:
 
 ```powershell
 npm run ai:test
 ```
 
-Jika berjaya, terminal akan memaparkan mesej seperti:
+If successful, the terminal will display a message like:
 
 ```text
 Classifier artifact is valid (80 training samples).
 ```
 
-Untuk training 100 baris, 80 digunakan untuk training dan 20 untuk validation.
-Sebab itu nombor yang dipaparkan ialah 80.
+For 100 rows of training, 80 are used for training and 20 for validation. That is why the number displayed is 80.
 
-Model boleh dibuka di:
+The model can be opened at:
 
 ```text
 frontend/public/models/risk-classifier.json
 ```
 
-Bahagian yang mudah difahami:
+Parts that are easy to understand:
 
-- `createdAt`: masa model dihasilkan.
-- `trainingSamples`: bilangan data training.
-- `validationSamples`: bilangan data validation.
-- `epochs`: bilangan pusingan pembelajaran.
-- `thresholds`: sempadan untuk low, medium dan high.
-- `validation`: precision, recall dan F2 pada validation set.
-- `weights`: 512 nombor yang dipelajari oleh model.
-- `bias`: nombor tambahan dalam pengiraan classifier.
+- `createdAt`: the time the model was generated.
+- `trainingSamples`: number of training data rows.
+- `validationSamples`: number of validation data rows.
+- `epochs`: number of learning rounds.
+- `thresholds`: boundaries for low, medium, and high.
+- `validation`: precision, recall, and F2 scores on the validation set.
+- `weights`: 512 numbers learned by the model.
+- `bias`: an additional number in the classifier calculation.
 
-Jangan edit `weights` atau `bias` secara manual. Untuk mengubahnya, train semula.
+Do not edit `weights` or `bias` manually. To change them, retrain the model.
 
-Skor validation yang tinggi daripada 20 contoh belum membuktikan model betul-betul
-bagus. Gunakan validation set yang lebih besar sebelum membuat kesimpulan.
+A high validation score from 20 examples does not prove the model is truly good. Use a larger validation set before drawing conclusions.
 
-## 7. Jalankan dan test di localhost
+## 7. Run and test on localhost
 
-Hidupkan Firebase Hosting Emulator:
+Start the Firebase Hosting Emulator:
 
 ```powershell
 firebase.cmd emulators:start --only hosting
 ```
 
-Buka URL yang diberikan oleh Firebase dan masuk ke bilik chat. Pastikan status
-menunjukkan:
+Open the URL provided by Firebase and enter the chat room. Ensure the status shows:
 
 ```text
 AI Active · Trained
 ```
 
-Untuk menguji tanpa menyimpan mesej ke Firestore:
+To test without saving messages to Firestore:
 
-1. Tekan `F12` dalam browser.
-2. Buka tab **Console**.
-3. Jalankan contoh berikut:
+1. Press `F12` in the browser.
+2. Open the **Console** tab.
+3. Run the following examples:
 
 ```javascript
 await analyzeRisk("I feel happy today")
 await analyzeRisk("aku rasa kosong dan dah putus asa")
 ```
 
-Contoh keputusan:
+Example result:
 
 ```javascript
 {
@@ -271,117 +252,102 @@ Contoh keputusan:
 }
 ```
 
-Maksud medan keputusan:
+Meaning of the result fields:
 
-- `finalScore`: skor model antara 0 hingga 1.
-- `riskLevel`: keputusan `none`, `low`, `medium` atau `high`.
-- `isRisk`: `true` jika mesej ditanda berisiko.
-- `isRegexMatch`: regex menjumpai frasa risiko yang jelas.
-- `distressFloor`: peraturan tekanan Melayu/Manglish telah digunakan.
-- `modelSource`: `trained` bermaksud model JSON sedang digunakan.
+- `finalScore`: the model's score between 0 and 1.
+- `riskLevel`: the result, either `none`, `low`, `medium`, or `high`.
+- `isRisk`: `true` if the message is flagged as a risk.
+- `isRegexMatch`: regex found a clear risk phrase.
+- `distressFloor`: Malay/Manglish distress rules were applied.
+- `modelSource`: `trained` means the JSON model is being used.
 
-Tekan `Ctrl+C` dalam terminal untuk mematikan localhost.
+Press `Ctrl+C` in the terminal to turn off localhost.
 
-## 8. Bagaimana tahu model semakin baik
+## 8. How to know if the model is getting better
 
-Jangan nilai model menggunakan accuracy sahaja. Periksa perkara berikut:
+Do not evaluate the model using accuracy alone. Check the following:
 
-- **False negative**: mesej berisiko tetapi model kata selamat. Ini paling penting
-  untuk dikurangkan.
-- **False positive**: mesej biasa tetapi model memberi amaran.
-- **Recall**: berapa banyak mesej risiko berjaya dikesan.
-- **Precision**: berapa banyak amaran yang benar-benar berkaitan risiko.
+- **False negative**: a risky message but the model says it's safe. This is the most crucial to reduce.
+- **False positive**: a normal message but the model gives a warning.
+- **Recall**: how many risk messages are successfully detected.
+- **Precision**: how many warnings are genuinely related to risk.
 
-Dataset Kaggle menggunakan teks English daripada Reddit dan hanya mempunyai dua
-label: `suicide` serta `non-suicide`. Aplikasi pula menggunakan empat tahap dan
-juga menerima Bahasa Melayu/Manglish. Oleh itu, langkah seterusnya ialah membina
-set ujian Melayu/Manglish yang disemak manusia.
+The Kaggle dataset uses English text from Reddit and only has two labels: `suicide` and `non-suicide`. The application, however, uses four levels and also accepts Malay/Manglish. Therefore, the next step is to build a human-reviewed Malay/Manglish test set.
 
-Jangan gunakan mesej peribadi pengguna tanpa izin. Buang nama, nombor telefon,
-alamat dan maklumat yang boleh mengenal pasti seseorang.
+Do not use users' personal messages without permission. Remove names, phone numbers, addresses, and any information that can identify a person.
 
-## 9. Dataset apa yang boleh digunakan
+## 9. What datasets can be used
 
-Model boleh diperbaiki menggunakan beberapa jenis data. Jangan campurkan semua
-data tanpa mengetahui label dan tujuan asalnya.
+The model can be improved using several types of data. Do not mix all data without knowing its labels and original purpose.
 
-### A. Dataset Kaggle suicide-watch
+### A. Kaggle suicide-watch dataset
 
-Dataset yang digunakan sekarang sesuai untuk belajar perbezaan asas:
+The dataset currently used is suitable for learning the basic differences:
 
 ```text
 suicide
 non-suicide
 ```
 
-Kelebihannya ialah jumlah data besar dan dua class hampir seimbang. Kekurangannya:
+Its advantage is a large amount of data and the two classes are almost balanced. Its disadvantages:
 
-- Kebanyakan teks ialah English.
-- Teks berasal daripada Reddit, bukan perbualan chat Malaysia.
-- Label hanya binary, bukan `low`, `medium` dan `high`.
-- Label berdasarkan sumber komuniti boleh mengandungi kesilapan.
+- Most of the text is English.
+- The text comes from Reddit, not Malaysian chat conversations.
+- Labels are only binary, not `low`, `medium`, and `high`.
+- Community-sourced labels can contain errors.
 
-Dataset ini sesuai sebagai asas classifier, bukan satu-satunya bukti bahawa model
-selamat digunakan.
+This dataset is suitable as a baseline classifier, not as the only proof that the model is safe to use.
 
-### B. Dataset Melayu/Manglish buatan kumpulan
+### B. Team-made Malay/Manglish dataset
 
-Ini data paling penting untuk aplikasi Serene Chat. Bina fail berasingan seperti:
+This is the most important data for the Serene Chat application. Build a separate file like:
 
 ```text
 training-data/malay-evaluation.csv
 ```
 
-Contoh struktur:
+Example structure:
 
 ```csv
 text,expected_level,category,notes
-"hari ini aku keluar makan dengan kawan",none,normal,ayat biasa
-"assignment ni membunuh aku",none,figurative,gurauan atau metafora
-"aku penat sangat dan perlukan seseorang untuk dengar",low,distress,perlukan sokongan
-"aku rasa dah tak ada harapan",medium,hopelessness,perlu disemak manusia
+"hari ini aku keluar makan dengan kawan",none,normal,normal sentence
+"assignment ni membunuh aku",none,figurative,joke or metaphor
+"aku penat sangat dan perlukan seseorang untuk dengar",low,distress,needs support
+"aku rasa dah tak ada harapan",medium,hopelessness,needs human review
 ```
 
-Contoh di atas hanya menunjukkan format. Label sebenar untuk data sensitif perlu
-disemak oleh orang yang memahami konteks kesihatan mental. Elakkan seorang sahaja
-menentukan semua label jika dataset akan digunakan dalam situasi sebenar.
+The example above only shows the format. Actual labels for sensitive data need to be reviewed by people who understand mental health contexts. Avoid having just one person determine all the labels if the dataset will be used in real-world situations.
 
-Masukkan variasi bahasa yang pengguna sebenar mungkin taip:
+Include language variations that real users might type:
 
-- Bahasa Melayu formal dan tidak formal.
-- Manglish dan campuran English.
-- Singkatan seperti `tak`, `tk`, `dah`, `dh`, `nak` dan `nk`.
-- Typo, perkataan berulang dan emoji.
-- Ayat pendek serta ayat panjang.
-- Ayat kiasan seperti `exam ni membunuh aku`.
-- Ayat yang memetik atau membincangkan topik risiko tanpa menyatakan niat sendiri.
-- Ayat normal tentang sekolah, keluarga, makanan, permainan dan aktiviti harian.
+- Formal and informal Malay.
+- Manglish and a mix of English.
+- Abbreviations like `tak`, `tk`, `dah`, `dh`, `nak`, and `nk`.
+- Typos, repeated words, and emojis.
+- Short sentences and long sentences.
+- Figurative sentences like `exam ni membunuh aku` (this exam is killing me).
+- Sentences quoting or discussing risk topics without stating personal intent.
+- Normal sentences about school, family, food, games, and daily activities.
 
-### C. Data simulasi
+### C. Simulated data
 
-Ahli kumpulan boleh menulis ayat rekaan untuk menambah variasi awal. Tandakan
-sumbernya sebagai `synthetic` supaya ia tidak bercampur tanpa rekod dengan data
-sebenar. Data simulasi membantu menguji sistem tetapi tidak boleh menggantikan
-data bahasa sebenar sepenuhnya.
+Team members can write fabricated sentences to add initial variation. Mark the source as `synthetic` so it doesn't mix untracked with real data. Simulated data helps test the system but cannot fully replace real language data.
 
-### D. Data aplikasi sebenar
+### D. Real application data
 
-Jangan terus mengambil mesej chat pengguna untuk training. Data sebenar hanya
-boleh digunakan jika terdapat izin yang jelas, proses membuang identiti dan
-kaedah penyimpanan yang selamat. Padam nama, username, nombor telefon, alamat,
-e-mel dan maklumat lain yang boleh mengenal pasti seseorang.
+Do not directly take user chat messages for training. Real data can only be used if there is clear permission, an anonymization process, and secure storage methods. Delete names, usernames, phone numbers, addresses, emails, and any other identifying information.
 
-## 10. Asingkan train, validation dan test
+## 10. Separate train, validation, and test
 
-Tiga kumpulan ini mempunyai tugas berbeza:
+These three groups have different tasks:
 
 ```text
-Train       Model belajar daripada data ini
-Validation  Digunakan untuk memilih threshold dan tetapan
-Test        Digunakan sekali untuk mengukur keputusan akhir
+Train       The model learns from this data
+Validation  Used to select thresholds and settings
+Test        Used once to measure final results
 ```
 
-Pembahagian mudah:
+Simple split:
 
 ```text
 70% train
@@ -389,34 +355,29 @@ Pembahagian mudah:
 15% test
 ```
 
-Script sekarang menggunakan 80% train dan 20% validation untuk eksperimen awal.
-Untuk penilaian yang lebih dipercayai, sediakan satu fail test Melayu/Manglish
-yang tidak pernah digunakan semasa training atau memilih threshold.
+The script currently uses 80% train and 20% validation for early experiments. For a more reliable evaluation, prepare a Malay/Manglish test file that is never used during training or threshold selection.
 
-Peraturan penting:
+Important rules:
 
-- Jangan letakkan ayat yang sama dalam train dan test.
-- Jangan ubah threshold berulang kali berdasarkan final test set.
-- Simpan bilangan label secara seimbang jika boleh.
-- Simpan versi dataset dan `seed` supaya eksperimen boleh diulang.
-- Jangan uji model hanya menggunakan ayat yang digunakan semasa training.
+- Do not put the same sentence in both train and test.
+- Do not repeatedly change the threshold based on the final test set.
+- Keep the number of labels balanced if possible.
+- Save the dataset version and `seed` so experiments can be repeated.
+- Do not test the model using only the sentences that were used during training.
 
-## 11. Cara menguji dan meningkatkan kekuatan AI
+## 11. How to test and improve AI strength
 
-### Langkah 1: Sahkan pipeline
+### Step 1: Validate the pipeline
 
-Train 100 rows dan pastikan website memaparkan `AI Active · Trained`. Ini hanya
-mengesahkan bahawa semua komponen bersambung dengan betul.
+Train 100 rows and ensure the website displays `AI Active · Trained`. This simply confirms that all components are connected properly.
 
-### Langkah 2: Bina test set sendiri
+### Step 2: Build your own test set
 
-Mulakan dengan sekurang-kurangnya 100 hingga 300 ayat Melayu/Manglish yang tidak
-berada dalam dataset training. Pastikan ada banyak contoh `none`, termasuk ayat
-kiasan yang mudah menghasilkan false positive.
+Start with at least 100 to 300 Malay/Manglish sentences that are not in the training dataset. Ensure there are many `none` examples, including figurative sentences that easily produce false positives.
 
-### Langkah 3: Catat expected dan predicted
+### Step 3: Record expected and predicted
 
-Untuk setiap ayat, simpan:
+For each sentence, save:
 
 ```text
 text
@@ -428,12 +389,12 @@ distressFloor
 modelSource
 ```
 
-Kemudian kumpulkan kesalahan kepada dua kumpulan utama:
+Then group the errors into two main categories:
 
-- **False negative**: sepatutnya risiko tetapi model kata selamat.
-- **False positive**: sepatutnya selamat tetapi model memberi amaran.
+- **False negative**: supposed to be a risk but the model says it's safe.
+- **False positive**: supposed to be safe but the model gives a warning.
 
-Untuk ujian kecil dalam browser Console, gunakan format ini:
+For small tests in the browser Console, use this format:
 
 ```javascript
 const testData = [
@@ -454,93 +415,87 @@ for (const item of testData) {
 }
 ```
 
-Label contoh perlu disemak semula oleh kumpulan; tujuan kod ini ialah menunjukkan
-cara membandingkan expected dan predicted secara tersusun.
+The example labels need to be re-reviewed by the team; the purpose of this code is to show how to structure the comparison between expected and predicted.
 
-### Langkah 4: Perbaiki mengikut jenis kesalahan
+### Step 4: Improve according to error types
 
-Jika banyak false negative English:
+If there are many English false negatives:
 
-- Tambah jumlah sample Kaggle secara perlahan.
-- Gunakan lebih banyak variasi ayat risiko dalam train set.
-- Semak sama ada threshold terlalu tinggi.
+- Slowly increase the Kaggle sample amount.
+- Use more variations of risk sentences in the train set.
+- Check if the threshold is too high.
 
-Jika banyak false negative Melayu/Manglish:
+If there are many Malay/Manglish false negatives:
 
-- Tambah data Melayu/Manglish yang telah dilabel dengan baik.
-- Tambah variasi ejaan kepada `SLANG_MAP` jika maksudnya benar-benar sama.
-- Tambah regex hanya untuk frasa yang sangat jelas.
+- Add well-labeled Malay/Manglish data.
+- Add spelling variations to `SLANG_MAP` if the meaning is truly the same.
+- Add regex only for very clear phrases.
 
-Jika banyak false positive:
+If there are many false positives:
 
-- Tambah lebih banyak contoh selamat dan ayat kiasan.
-- Semak `SAFE_ANCHORS` dan ayat normal yang hampir sama dengan ayat risiko.
-- Semak threshold menggunakan validation set, bukan berdasarkan tekaan sahaja.
+- Add more safe examples and figurative sentences.
+- Check `SAFE_ANCHORS` and normal sentences that are very similar to risk sentences.
+- Check thresholds using the validation set, not just based on guessing.
 
-Jika model keliru antara `low`, `medium` dan `high`:
+If the model is confused between `low`, `medium`, and `high`:
 
-- Ingat bahawa dataset Kaggle hanya mempunyai dua label.
-- Bina dataset severity yang mempunyai label `none/low/medium/high`.
-- Tulis panduan label yang jelas sebelum beberapa orang melabel data.
-- Ukur persetujuan antara pelabel sebelum menggunakan label tersebut.
+- Remember that the Kaggle dataset only has two labels.
+- Build a severity dataset that has `none/low/medium/high` labels.
+- Write a clear labeling guide before multiple people label the data.
+- Measure agreement between labelers before using those labels.
 
-### Langkah 5: Naikkan data secara berperingkat
+### Step 5: Increase data in stages
 
-Cadangan urutan eksperimen:
+Suggested experiment sequence:
 
 ```text
-100 rows     Semak sambungan sistem
-2,000 rows   Semak masa training dan kesalahan jelas
-10,000 rows  Bandingkan precision/recall
-40,000 rows  Model eksperimen yang lebih pelbagai
-dataset penuh hanya jika hasil sebelumnya masih bertambah baik
+100 rows     Check system connections
+2,000 rows   Check training time and obvious errors
+10,000 rows  Compare precision/recall
+40,000 rows  More diverse experimental model
+full dataset only if previous results are still improving
 ```
 
-Lebih banyak data tidak semestinya lebih baik jika labelnya salah, duplicate atau
-tidak sama dengan bahasa pengguna aplikasi.
+More data is not necessarily better if the labels are wrong, duplicated, or do not match the language of the application users.
 
-### Langkah 6: Bandingkan setiap versi model
+### Step 6: Compare each model version
 
-Untuk setiap eksperimen, rekodkan:
+For each experiment, record:
 
 ```text
-Nama/versi model
-Tarikh training
-Bilangan sample
-Seed dan epochs
+Model name/version
+Training date
+Number of samples
+Seed and epochs
 Precision
 Recall
 F2
-Bilangan false negative
-Bilangan false positive
-Keputusan test Melayu/Manglish
+Number of false negatives
+Number of false positives
+Malay/Manglish test results
 ```
 
-Jangan pilih model hanya kerana accuracy paling tinggi. Untuk alat saringan,
-recall dan jumlah false negative sangat penting, tetapi terlalu banyak false
-positive juga boleh menyebabkan pengguna mengabaikan amaran.
+Do not choose a model just because the accuracy is the highest. For a screening tool, recall and the number of false negatives are very important, but too many false positives can also cause users to ignore warnings.
 
-### Langkah 7: Ujian sebelum deploy
+### Step 7: Testing before deployment
 
-Sebelum menggantikan model lama:
+Before replacing the old model:
 
-1. Simpan salinan model lama.
-2. Jalankan `npm run ai:test`.
-3. Uji set English dan Melayu/Manglish yang sama pada kedua-dua model.
-4. Bandingkan kesalahan, bukan hanya satu skor keseluruhan.
-5. Uji `AI Active · Trained` di localhost.
-6. Pastikan fallback `AI Active · Anchors` masih berfungsi jika JSON dibuang.
-7. Minta ahli kumpulan semak keputusan sebelum deploy.
+1. Save a copy of the old model.
+2. Run `npm run ai:test`.
+3. Test the same English and Malay/Manglish set on both models.
+4. Compare errors, not just one overall score.
+5. Test `AI Active · Trained` on localhost.
+6. Ensure the `AI Active · Anchors` fallback still works if the JSON is removed.
+7. Ask team members to review the results before deploying.
 
-Model boleh dikatakan semakin kuat apabila keputusan pada **test set yang tidak
-pernah dilihat** bertambah baik secara konsisten, terutama apabila false negative
-berkurang tanpa menyebabkan false positive meningkat terlalu banyak.
+The model can be said to be getting stronger when the results on an **unseen test set** consistently improve, especially when false negatives decrease without causing a significant increase in false positives.
 
-## 12. Jika berlaku masalah
+## 12. If problems occur
 
 ### `CSV needs text/class columns`
 
-Pastikan fail yang betul berada di:
+Ensure the correct file is located at:
 
 ```text
 training-data/Suicide_Detection.csv
@@ -548,30 +503,29 @@ training-data/Suicide_Detection.csv
 
 ### `AI Active · Anchors`
 
-Model JSON mungkin tiada atau tidak sah. Jalankan:
+The JSON model might be missing or invalid. Run:
 
 ```powershell
 npm run ai:test
 ```
 
-Kemudian train semula jika perlu.
+Then retrain if necessary.
 
-### PowerShell tidak membenarkan `firebase.ps1`
+### PowerShell does not allow `firebase.ps1`
 
-Gunakan `firebase.cmd`:
+Use `firebase.cmd`:
 
 ```powershell
 firebase.cmd emulators:start --only hosting
 ```
 
-### Port 5000 sedang digunakan
+### Port 5000 is in use
 
-Lihat URL sebenar dalam terminal. Firebase mungkin menggunakan port `5002` atau
-port lain secara automatik.
+Look at the actual URL in the terminal. Firebase might automatically use port `5002` or another port.
 
-## 13. Fail yang perlu dipush
+## 13. Files to push
 
-Push fail berikut:
+Push the following files:
 
 ```text
 frontend/public/js/ai-detector.js
@@ -585,7 +539,7 @@ AI_TRAINING.md
 .gitignore
 ```
 
-Jangan push:
+Do not push:
 
 ```text
 training-data/
@@ -594,7 +548,6 @@ node_modules/
 *.log
 ```
 
-Sebelum push, gunakan `git status` dan pastikan CSV/ZIP Kaggle tidak kelihatan.
+Before pushing, use `git status` and ensure the Kaggle CSV/ZIP is not visible.
 
-> Model ini ialah alat bantuan saringan, bukan diagnosis perubatan. Keputusan AI
-> masih perlu dinilai oleh manusia yang sesuai.
+> This model is a screening aid, not a medical diagnosis. AI results still need to be evaluated by appropriate human personnel.
