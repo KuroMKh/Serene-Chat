@@ -55,7 +55,12 @@ def generate_variants(
     max_length: int,
 ) -> list[str]:
     prompt = f"terjemah ke {target}: {text}{tokenizer.eos_token}"
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(device)
+    inputs = tokenizer(
+        prompt,
+        return_tensors="pt",
+        truncation=True,
+        return_token_type_ids=False,
+    ).to(device)
     with torch.inference_mode():
         outputs = model.generate(
             **inputs,
