@@ -1,138 +1,123 @@
 # Serene Chat
 
-Serene Chat ialah aplikasi chat masa nyata menggunakan Firebase. Aplikasi ini
-mempunyai login, bilik chat, penyulitan mesej dalam browser dan pengesan mesej
-berisiko menggunakan TensorFlow.js.
+Serene Chat is a real-time chat application using Firebase. This application features login, chat rooms, in-browser message encryption, and a risky message detector using TensorFlow.js.
 
-## Cara AI dalam projek ini berfungsi
+## How the AI in this project works
 
-AI ini bukan chatbot. Tugasnya ialah membaca teks dan menganggarkan sama ada
-teks itu mempunyai tanda risiko. Alirannya ialah:
+This AI is not a chatbot. Its task is to read text and estimate whether the text contains signs of risk. The flow is:
 
 ```text
-Mesej pengguna
-  -> normalisasi Bahasa Melayu/Manglish
+User message
+  -> Malay/Manglish normalization
   -> Universal Sentence Encoder (TensorFlow.js)
-  -> model classifier yang telah dilatih
-  -> keputusan none / low / medium / high
+  -> trained classifier model
+  -> none / low / medium / high result
 ```
 
-Fail utama AI:
+Main AI files:
 
-- `frontend/public/js/ai-detector.js` menjalankan pengesanan dalam browser.
-- `frontend/public/models/risk-classifier.json` ialah model kecil hasil training.
-- `tools/train-ai.mjs` digunakan untuk melatih model.
-- `tools/test-ai-artifact.mjs` memeriksa sama ada fail model sah.
-- `AI_TRAINING.md` mengandungi panduan training langkah demi langkah.
+- `frontend/public/js/ai-detector.js` runs the detection in the browser.
+- `frontend/public/models/risk-classifier.json` is the small model resulting from training.
+- `tools/train-ai.mjs` is used to train the model.
+- `tools/test-ai-artifact.mjs` checks whether the model file is valid.
+- `AI_TRAINING.md` contains the step-by-step training guide.
 
-Model sekarang hanya dilatih menggunakan 100 baris sebagai ujian awal. Ia sesuai
-untuk menguji sistem, tetapi belum cukup kuat untuk penggunaan sebenar.
+The current model is only trained using 100 rows as an initial test. It is suitable for testing the system, but not yet strong enough for actual usage.
 
-## Untuk ahli kumpulan: selepas pull terus boleh guna
+## For team members: ready to use right after pull
 
-Versi mudahnya: **ya, bahagian AI sudah dipasang dalam website**. Selepas pull,
-anda tidak perlu download dataset atau train model untuk menggunakan AI yang
-sedia ada. Fail model kecil sudah disimpan bersama code.
+The simple version: **yes, the AI part is already installed on the website**. After pulling, you do not need to download the dataset or train the model to use the existing AI. The small model file is already saved alongside the code.
 
-Selepas clone atau pull repository:
+After cloning or pulling the repository:
 
 ```powershell
 npm install
 firebase.cmd emulators:start --only hosting
 ```
 
-Jika arahan `firebase.cmd` tidak dijumpai, pasang Firebase CLI sekali sahaja:
+If the `firebase.cmd` command is not found, install the Firebase CLI once:
 
 ```powershell
 npm install -g firebase-tools
 ```
 
-Buka URL localhost yang Firebase paparkan, login dan masuk ke bilik chat. AI akan
-load sendiri. Tidak perlu run `ai:train` untuk penggunaan biasa.
+Open the localhost URL displayed by Firebase, log in, and enter a chat room. The AI will load on its own. No need to run `ai:train` for normal usage.
 
-Semak tulisan pada bahagian atas chat:
+Check the text at the top of the chat:
 
-- `AI Active · Trained` bermaksud model yang telah dilatih berjaya digunakan.
-- `AI Active · Anchors` bermaksud model JSON tidak dapat digunakan, tetapi sistem
-  pengesanan lama masih berjalan sebagai backup.
-- `AI Failed (Regex only)` bermaksud model TensorFlow gagal load dan hanya
-  pemeriksaan perkataan/frasa jelas sedang berjalan.
+- `AI Active · Trained` means the trained model is successfully used.
+- `AI Active · Anchors` means the JSON model cannot be used, but the old detection system is still running as a backup.
+- `AI Failed (Regex only)` means the TensorFlow model failed to load and only clear word/phrase checking is running.
 
-### Status AI sekarang
+### Current AI status
 
 ```text
-Setup training             Siap
-Sambungan model ke website Siap
-Model percubaan             Siap (100 rows total)
-Fallback anchor/regex       Siap
-Dataset besar dalam GitHub  Tidak, sengaja di-ignore
-Sedia untuk demo/testing    Ya
-Sedia dianggap model tepat Belum
+Setup training              Done
+Model connection to website Done
+Trial model                 Done (100 rows total)
+Fallback anchor/regex       Done
+Large dataset in GitHub     No, intentionally ignored
+Ready for demo/testing      Yes
+Ready to be deemed accurate No
 ```
 
-100 rows tadi dibahagikan kepada 80 rows untuk model belajar dan 20 rows untuk
-validation. Ia membuktikan sistem boleh train, export dan load model. Ia belum
-membuktikan model cukup tepat untuk situasi sebenar.
+The 100 rows were divided into 80 rows for the model to learn and 20 rows for validation. It proves the system can train, export, and load the model. It does not yet prove the model is accurate enough for real-world situations.
 
-### Bila perlu dataset Kaggle?
+### When is the Kaggle dataset needed?
 
-- Mahu guna atau demo model sekarang: **tidak perlu dataset**.
-- Mahu train semula atau kuatkan model: **perlu download dataset**.
-- Mahu edit UI atau fungsi chat sahaja: **tidak perlu dataset**.
+- Want to use or demo the model now: **no dataset needed**.
+- Want to retrain or strengthen the model: **need to download dataset**.
+- Want to edit UI or chat functions only: **no dataset needed**.
 
-### Bila perlu `npm run ai:train`?
+### When to use `npm run ai:train`?
 
-Jalankan arahan itu hanya apabila mahu menghasilkan model baru. Training akan
-menimpa `frontend/public/models/risk-classifier.json`, jadi periksa model baru
-sebelum commit.
+Run that command only when you want to generate a new model. Training will overwrite `frontend/public/models/risk-classifier.json`, so check the new model before committing.
 
-## Struktur projek
+## Project structure
 
 ```text
-frontend/public/          Fail website yang dihantar ke Firebase Hosting
-backend/                  Dokumentasi dan ruang backend
-tools/                    Script training dan pemeriksaan model
-training-data/            Dataset tempatan (tidak masuk GitHub)
-training-output/          Output eksperimen (tidak masuk GitHub)
-AI_TRAINING.md            Panduan penuh training AI
-firebase.json             Tetapan Firebase Hosting
+frontend/public/          Website files deployed to Firebase Hosting
+backend/                  Documentation and backend space
+tools/                    Training and model checking scripts
+training-data/            Local dataset (not pushed to GitHub)
+training-output/          Experiment output (not pushed to GitHub)
+AI_TRAINING.md            Full AI training guide
+firebase.json             Firebase Hosting settings
 ```
 
-## Setup pertama kali
+## First-time setup
 
-Keperluan:
+Requirements:
 
-- Node.js 18 atau lebih baru
+- Node.js 18 or newer
 - Firebase CLI
-- Dataset Kaggle untuk training semula
+- Kaggle dataset for retraining
 
-Pasang dependency:
+Install dependencies:
 
 ```powershell
 npm install
 ```
 
-## Jalankan di localhost
+## Run on localhost
 
-Jangan buka fail HTML dengan klik dua kali. Jalankan Firebase Hosting Emulator
-daripada folder utama projek:
+Do not open the HTML file by double-clicking it. Run the Firebase Hosting Emulator from the main project folder:
 
 ```powershell
 firebase.cmd emulators:start --only hosting
 ```
 
-Buka alamat yang dipaparkan, biasanya `http://127.0.0.1:5000`. Jika port itu
-sedang digunakan, Firebase mungkin memilih port lain seperti `5002`.
+Open the displayed address, usually `http://127.0.0.1:5000`. If that port is in use, Firebase might choose another port like `5002`.
 
-Masuk ke bilik chat dan lihat status AI:
+Enter the chat room and check the AI status:
 
-- `AI Active · Trained`: model JSON berjaya digunakan.
-- `AI Active · Anchors`: model JSON tiada atau rosak; sistem anchor digunakan.
-- `AI Failed (Regex only)`: TensorFlow/USE gagal dimuatkan.
+- `AI Active · Trained`: JSON model is successfully used.
+- `AI Active · Anchors`: JSON model is missing or corrupted; anchor system is used.
+- `AI Failed (Regex only)`: TensorFlow/USE failed to load.
 
-## Dataset besar tidak dimasukkan ke GitHub
+## Large dataset not included in GitHub
 
-Folder berikut telah dimasukkan dalam `.gitignore`:
+The following folders have been added to `.gitignore`:
 
 ```text
 training-data/
@@ -140,16 +125,13 @@ training-output/
 node_modules/
 ```
 
-Oleh itu, fail `Suicide_Detection.csv` dan ZIP Kaggle tidak akan ikut semasa
-`git add` atau `git push`. Setiap ahli kumpulan perlu download dataset sendiri
-jika mahu train semula.
+Therefore, the `Suicide_Detection.csv` file and Kaggle ZIP will not be included during `git add` or `git push`. Each team member needs to download the dataset themselves if they want to retrain.
 
-Fail `frontend/public/models/risk-classifier.json` pula sengaja dimasukkan ke
-GitHub kerana ia kecil dan diperlukan oleh website untuk menjalankan model.
+The `frontend/public/models/risk-classifier.json` file, however, is intentionally pushed to GitHub because it is small and required by the website to run the model.
 
-## Sebelum push
+## Before pushing
 
-Periksa perubahan dan pastikan dataset tidak tersenarai:
+Check the changes and ensure the dataset is not listed:
 
 ```powershell
 git status
@@ -157,7 +139,7 @@ git check-ignore -v training-data/Suicide_Detection.csv
 npm run ai:test
 ```
 
-Kemudian gunakan aliran Git biasa:
+Then use the normal Git workflow:
 
 ```powershell
 git add .
@@ -165,8 +147,7 @@ git commit -m "Add trained AI risk classifier pipeline"
 git push
 ```
 
-Semak perubahan sebelum commit kerana repository ini turut mempunyai pemindahan
-fail lama ke dalam folder `frontend/`.
+Check the changes before committing because this repository also includes the migration of old files into the `frontend/` folder.
 
 ## Deployment
 
@@ -174,15 +155,10 @@ fail lama ke dalam folder `frontend/`.
 firebase.cmd deploy --only hosting
 ```
 
-Firebase hanya menerbitkan `frontend/public`. Dataset training tidak akan
-diterbitkan.
+Firebase only publishes `frontend/public`. The training dataset will not be published.
 
-Untuk download dataset, train model dan menguji keputusan AI, baca
-[AI_TRAINING.md](AI_TRAINING.md).
+To download the dataset, train the model, and test the AI results, read [AI_TRAINING.md](AI_TRAINING.md).
 
-Panduan itu turut menerangkan jenis data yang boleh digunakan, cara membina test
-set Melayu/Manglish, beza train/validation/test, cara mengesan false positive dan
-false negative serta langkah menaikkan kekuatan model secara berperingkat.
+The guide also explains the types of data that can be used, how to build a Malay/Manglish test set, the differences between train/validation/test, how to detect false positives and false negatives, and the steps to gradually increase the model's strength.
 
-> Pengesan ini hanyalah alat saringan awal, bukan diagnosis perubatan atau
-> pengganti penilaian manusia. Keputusan berisiko perlu disemak dengan berhati-hati.
+> This detector is merely an initial screening tool, not a medical diagnosis or a substitute for human evaluation. Risky results must be reviewed carefully.
