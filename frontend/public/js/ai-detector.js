@@ -9,9 +9,19 @@ let riskAnchorData = null;
 let safeAnchorData = null;
 let riskNorms = null;
 let safeNorms = null;
-let trainedClassifier = null;
+let riskClassifier = null;       // trained classifier head (loaded in loadAI)
+let classifierThresholds = null; // { LOW, MEDIUM, HIGH } probabilities from training
 
-const TRAINED_CLASSIFIER_URL = "models/risk-classifier.json";
+// Learned classifier on top of USE embeddings (trained on Kaggle data, see /ml).
+// Set USE_CLASSIFIER = false to fall back to the original anchor-similarity scoring.
+// If the model files fail to load, the engine falls back to anchors automatically.
+const USE_CLASSIFIER = true;
+const CLASSIFIER_MODEL_URL = "models/risk/model.json";
+const CLASSIFIER_THRESHOLDS_URL = "models/risk/thresholds.json";
+// Keep the safe-anchor veto (academic hyperbole like "this fyp is killing me")
+// active even when the classifier is scoring. Evaluate this on your own chat
+// test set: the veto can lower recall, but the classifier never saw this kind of phrase.
+const SAFE_VETO_WITH_CLASSIFIER = true;
 
 // Set true to skip embedding when an explicit keyword already forces "high".
 // Faster, but stores finalScore = 1 instead of the real semantic score —
@@ -55,6 +65,7 @@ const SLANG_MAP = {
   "tak larat": "cannot take it anymore",
   "tk larat": "cannot take it anymore",
   "tlarat": "cannot take it anymore",
+  "x larat": "cannot take it anymore",
   "putus asa": "give up",
   "dah givap": "i give up",
   "dah fedup": "i am fed up",
@@ -98,7 +109,7 @@ const RISK_ANCHORS = [
 ];
 
 const SAFE_ANCHORS = [
-  "nother fyp meeting i think im gonna actuaally kill myself if he tells me to redo it",
+  "another fyp meeting i think im gonna actually kill myself if he tells me to redo it",
   "this exam is going to kill me",
   "this fyp is killing me",
   "literally whats the point of trying so hard if im just gonna fail anyway",
@@ -116,7 +127,17 @@ const RISK_REGEX = [
   // Malay Regex
   /bunuh\s*diri/i, /bnh\s*diri/i, /n[a|k]k?\s*mati/i, /tamat(kan)?\s*nyawa/i,
   /kelar\s*tangan/i, /toreh\s*tangan/i, /terjun\s*bangunan/i, /baik\s*aku\s*mati/i,
-  /penat\s*n[a|k]k?\s*hidup/i, /malas\s*n[a|k]k?\s*hidup/i
+  /penat\s*n[a|k]k?\s*hidup/i, /malas\s*n[a|k]k?\s*hidup/i,
+  // "tak larat nak hidup" / "x larat nak hidup" — "can't bear to live" is far more
+  // severe than plain "tak larat" ("can't take it") on its own, but SLANG_MAP already
+  // translates "tak larat" to "cannot take it anymore" BEFORE this regex list runs
+  // (RISK_REGEX tests cleanText, i.e. post-normalizeText), leaving "nak hidup" as the
+  // only Malay left to match on. Matches the translated form, not the raw Malay.
+  /cannot\s*take\s*it\s*anymore\s*n[a|k]k?\s*hidup/i,
+  // "tak nak hidup" / "x nak hidup" on its own ("don't want to live") — not in
+  // SLANG_MAP, so still raw Malay at this point. Anchored to "hidup" so it doesn't
+  // fire on unrelated "tak nak ..." phrases.
+  /tak\s*n[a|k]k?\s*hidup/i
 ];
 
 // 4. SEVERITY THRESHOLDS — tune as you collect labeled test data
@@ -198,44 +219,6 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(nA) * Math.sqrt(nB));
 }
 
-function sigmoid(value) {
-  if (value >= 0) return 1 / (1 + Math.exp(-value));
-  const exp = Math.exp(value);
-  return exp / (1 + exp);
-}
-
-function trainedRiskScore(vec) {
-  let logit = trainedClassifier.bias;
-  for (let i = 0; i < 512; i++) logit += vec[i] * trainedClassifier.weights[i];
-  return sigmoid(logit);
-}
-
-async function loadTrainedClassifier() {
-  try {
-    const response = await fetch(TRAINED_CLASSIFIER_URL, { cache: "no-cache" });
-    if (!response.ok) return null;
-    const artifact = await response.json();
-    const validThresholds = artifact.thresholds &&
-      ["low", "medium", "high"].every(name => Number.isFinite(artifact.thresholds[name]));
-    if (artifact.format !== "serene-use-logistic-regression" ||
-        artifact.version !== 1 ||
-        !Array.isArray(artifact.weights) ||
-        artifact.weights.length !== 512 ||
-        !artifact.weights.every(Number.isFinite) ||
-        !Number.isFinite(artifact.bias) ||
-        !validThresholds ||
-        artifact.thresholds.low > artifact.thresholds.medium ||
-        artifact.thresholds.medium > artifact.thresholds.high) {
-      throw new Error("Invalid trained classifier artifact");
-    }
-    artifact.weights = new Float32Array(artifact.weights);
-    return artifact;
-  } catch (error) {
-    console.warn("AI Engine: trained classifier unavailable; using semantic anchors.", error);
-    return null;
-  }
-}
-
 // 7. INDEXEDDB CACHE (anchor embeddings)
 // Bump the version suffix whenever you EDIT existing anchor text — the
 // length checks below only catch anchors being added or removed.
@@ -285,7 +268,6 @@ async function loadAI() {
 
   try {
     aiModel = await use.load();
-    trainedClassifier = await loadTrainedClassifier();
 
     const cached = await idbGet(ANCHOR_CACHE_KEY);
     if (cached && cached.riskLen === RISK_ANCHORS.length && cached.safeLen === SAFE_ANCHORS.length) {
@@ -316,8 +298,25 @@ async function loadAI() {
     // Warm up the model so the first real message doesn't pay kernel-compile cost
     try { (await aiModel.embed(["warmup"])).dispose(); } catch (e) { /* non-fatal */ }
 
+    // Load the trained classifier head + its tuned thresholds (optional, non-fatal)
+    if (USE_CLASSIFIER) {
+      try {
+        const [clf, thr] = await Promise.all([
+          tf.loadLayersModel(CLASSIFIER_MODEL_URL),
+          fetch(CLASSIFIER_THRESHOLDS_URL).then(r => { if (!r.ok) throw new Error("thresholds HTTP " + r.status); return r.json(); })
+        ]);
+        riskClassifier = clf;
+        classifierThresholds = thr;
+        tf.tidy(() => riskClassifier.predict(tf.zeros([1, 512])).dataSync()); // warm up
+        console.log("AI Engine: Risk classifier loaded.", classifierThresholds);
+      } catch (e) {
+        riskClassifier = null; classifierThresholds = null;
+        console.warn("AI Engine: Classifier unavailable, using anchor scoring.", e);
+      }
+    }
+
     document.getElementById("aiDot").className = "status-dot status-ready";
-    document.getElementById("aiText").textContent = trainedClassifier ? "AI Active · Trained" : "AI Active · Anchors";
+    document.getElementById("aiText").textContent = "AI Active";
   } catch (e) {
     console.error("AI Initialization Error:", e);
     document.getElementById("aiText").textContent = "AI Failed (Regex only)";
@@ -326,7 +325,7 @@ async function loadAI() {
 }
 
 // 9. CORE ANALYSIS
-// Returns { finalScore, safeScore, isRegexMatch, riskLevel, isRisk, distressFloor }
+// Returns { finalScore, safeScore, anchorScore, scoreSource, isRegexMatch, riskLevel, isRisk, distressFloor }
 // riskLevel: "none" | "low" | "medium" | "high"
 async function analyzeRisk(rawText) {
   const cleanText = normalizeText(rawText);
@@ -372,26 +371,43 @@ async function analyzeRisk(rawText) {
       if (score > maxSafeScore) maxSafeScore = score;
     }
 
-    let riskLevel;
-    let finalScore = maxRiskScore;
+    // Score source: trained classifier probability if available, else anchor similarity.
+    const useClf = USE_CLASSIFIER && riskClassifier && classifierThresholds;
+    let score = maxRiskScore;
+    let th = THRESHOLDS;
+    if (useClf) {
+      score = tf.tidy(() => riskClassifier.predict(tf.tensor2d(vec, [1, 512])).dataSync()[0]);
+      th = classifierThresholds;
+    }
 
-    if (trainedClassifier) {
-      finalScore = trainedRiskScore(vec);
-      const trainedThresholds = trainedClassifier.thresholds;
-      if (isRegexMatch || finalScore >= trainedThresholds.high) riskLevel = "high";
-      else if (finalScore >= trainedThresholds.medium) riskLevel = "medium";
-      else if (finalScore >= trainedThresholds.low) riskLevel = "low";
-      else riskLevel = "none";
-    // Safe-anchor veto — only needed by the anchor fallback. The trained
-    // classifier has learned from non-suicide examples.
-    } else if (!isRegexMatch && maxSafeScore > maxRiskScore && maxSafeScore > THRESHOLDS.SAFE_VETO) {
+    let riskLevel;
+    const safeDominant = maxSafeScore > maxRiskScore && maxSafeScore > THRESHOLDS.SAFE_VETO;
+    // Separate, looser check for the regex-downgrade case only: many RISK_ANCHORS
+    // and SAFE_ANCHORS both contain the word "kill", so maxRiskScore is often high
+    // too for hyperbole like "this deadline is killing me" — requiring safe > risk
+    // (like the full veto above) was too strict and missed real cases. Here we only
+    // require the safe-anchor similarity itself to clear the threshold.
+    const stronglyResemblesSafe = maxSafeScore > THRESHOLDS.SAFE_VETO;
+
+    // Safe-anchor veto — never fully overrides an explicit keyword match, but an
+    // explicit match paired with strongly dominant safe-anchor similarity (e.g.
+    // "this deadline is actually going to kill me" hitting a "kill" pattern while
+    // reading almost identically to the academic-hyperbole safe anchors) is
+    // downgraded to MEDIUM rather than forced to HIGH — still flagged for review,
+    // not treated as a full crisis alert. Distinct explicit terms with no lexical
+    // overlap to the safe anchors (e.g. "kms", an explicit plan) won't score high
+    // safe-similarity in the first place, so they still reach HIGH untouched.
+    if (!isRegexMatch && (!useClf || SAFE_VETO_WITH_CLASSIFIER) && safeDominant) {
       console.log(`[AI Veto] Safe:${(maxSafeScore*100).toFixed(1)}% > Risk:${(maxRiskScore*100).toFixed(1)}%`);
       riskLevel = "none";
-    } else if (isRegexMatch || maxRiskScore >= THRESHOLDS.HIGH) {
-      riskLevel = "high";
-    } else if (maxRiskScore >= THRESHOLDS.MEDIUM) {
+    } else if (isRegexMatch && stronglyResemblesSafe) {
+      console.log(`[AI Downgrade] Regex matched but Safe:${(maxSafeScore*100).toFixed(1)}% > Risk:${(maxRiskScore*100).toFixed(1)}% -> MEDIUM, not HIGH`);
       riskLevel = "medium";
-    } else if (maxRiskScore >= THRESHOLDS.LOW) {
+    } else if (isRegexMatch || score >= th.HIGH) {
+      riskLevel = "high";
+    } else if (score >= th.MEDIUM) {
+      riskLevel = "medium";
+    } else if (score >= th.LOW) {
       riskLevel = "low";
     } else {
       riskLevel = "none";
@@ -401,10 +417,12 @@ async function analyzeRisk(rawText) {
     if (riskLevel === "none" && distressFloor) riskLevel = "low";
 
     if (riskLevel !== "none") {
-      console.log(`[AI Alert] Level: ${riskLevel.toUpperCase()} | Score: ${(finalScore*100).toFixed(1)}% | Source: ${trainedClassifier ? "trained" : "anchors"} | Regex: ${isRegexMatch} | DistressFloor: ${distressFloor}`);
+      console.log(`[AI Alert] Level: ${riskLevel.toUpperCase()} | Score: ${(score*100).toFixed(1)}% (${useClf ? "classifier" : "anchors"}) | Regex: ${isRegexMatch} | DistressFloor: ${distressFloor} | Safe:${(maxSafeScore*100).toFixed(1)}% Risk:${(maxRiskScore*100).toFixed(1)}%`);
     }
 
-    return { finalScore, safeScore: maxSafeScore, isRegexMatch, riskLevel, isRisk: riskLevel !== "none", distressFloor, modelSource: trainedClassifier ? "trained" : "anchors" };
+    // finalScore is the classifier probability when active, otherwise the anchor similarity.
+    // anchorScore and scoreSource make logged data comparable across both modes.
+    return { finalScore: score, safeScore: maxSafeScore, anchorScore: maxRiskScore, scoreSource: useClf ? "classifier" : "anchors", isRegexMatch, riskLevel, isRisk: riskLevel !== "none", distressFloor };
 
   } catch (e) {
     console.warn("AI Inference Error:", e);
