@@ -1,0 +1,100 @@
+/* Guest-dashboard overrides */
+:root {
+  --warning-bg: #fff8ec;
+  --warning-border: #ffd580;
+  --warning-text: #a06000;
+}
+
+body.guest-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 16px 100px;
+}
+
+    /* =========================================
+       1. CSS VARIABLES & RESET
+       ========================================= */
+    .guest-page .wrap { 
+      width: 100%; 
+      max-width: 400px; 
+    }
+
+    /* =========================================
+       2. HEADER & GREETING
+       ========================================= */
+
+    
+
+    
+    .avatar-circle { 
+      width: 48px; height: 48px; border-radius: 50%; 
+      overflow: hidden; border: 3px solid var(--border); 
+      flex-shrink: 0; background: var(--purple-bg); 
+    }
+
+    /* =========================================
+       3. GUEST WARNING BANNER
+       ========================================= */
+    .guest-banner { 
+      background: var(--warning-bg); border: 1.5px solid var(--warning-border); 
+      border-radius: 16px; padding: 14px 16px; margin-bottom: 18px; 
+      display: flex; align-items: center; gap: 12px; 
+    }
+
+    .guest-banner-icon { font-size: 28px; flex-shrink: 0; }
+    .guest-banner-text { flex: 1; }
+
+    .guest-banner-text strong { 
+      display: block; font-size: 13px; font-weight: 800; color: var(--warning-text); 
+    }
+
+    .guest-banner-text span { 
+      font-size: 12px; color: #b87a00; font-weight: 600; margin-top: 2px; display: block; 
+    }
+
+    .guest-banner-btn { 
+      background: var(--purple); color: #fff; border: none; border-radius: 10px; 
+      padding: 9px 14px; font-size: 12px; font-weight: 800; font-family: var(--font); 
+      cursor: pointer; white-space: nowrap; transition: 0.2s; flex-shrink: 0; 
+    }
+
+    .guest-banner-btn:hover { background: var(--purple-dark); transform: translateY(-1px); }
+
+    /* =========================================
+       4. SEARCH & INPUTS
+       ========================================= */
+
+    
+    /* =========================================
+       5. NOTIFICATIONS & LINKS
+       ========================================= */
+    .no-history-note { 
+      background: var(--surface); border: 1.5px solid var(--border); 
+      border-radius: 18px; padding: 24px 20px; text-align: center; 
+      margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+    }
+
+    .no-history-note .note-icon { font-size: 36px; margin-bottom: 10px; }
+    .no-history-note p { font-size: 13px; color: var(--text-muted); font-weight: 600; line-height: 1.7; }
+    .no-history-note a { color: var(--purple); text-decoration: none; font-weight: 800; }
+    .no-history-note a:hover { text-decoration: underline; }
+
+    .exit-link { 
+      text-align: center; font-size: 12px; color: var(--text-dim); 
+      font-weight: 600; margin-top: 24px; 
+    }
+    .exit-link a { color: var(--danger); text-decoration: none; font-weight: 700; }
+    .exit-link a:hover { text-decoration: underline; }
+
+    /* =========================================
+       6. FLOATING ACTION BUTTON (FAB)
+       ========================================= */
+
+    /* =========================================
+       7. LOADING OVERLAY
+       ========================================= */
+
+    #loadingOverlay { display: flex; }
+    #mainContent { display: none; }
