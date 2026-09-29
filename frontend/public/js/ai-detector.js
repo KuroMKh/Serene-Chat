@@ -9,6 +9,9 @@ let riskAnchorData = null;
 let safeAnchorData = null;
 let riskNorms = null;
 let safeNorms = null;
+let trainedClassifier = null;
+
+const TRAINED_CLASSIFIER_URL = "models/risk-classifier.json";
 
 // Set true to skip embedding when an explicit keyword already forces "high".
 // Faster, but stores finalScore = 1 instead of the real semantic score —
@@ -95,7 +98,7 @@ const RISK_ANCHORS = [
 ];
 
 const SAFE_ANCHORS = [
-  "another fyp meeting i think im gonna actually kill myself if he tells me to redo it",
+  "nother fyp meeting i think im gonna actuaally kill myself if he tells me to redo it",
   "this exam is going to kill me",
   "this fyp is killing me",
   "literally whats the point of trying so hard if im just gonna fail anyway",
@@ -195,6 +198,44 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(nA) * Math.sqrt(nB));
 }
 
+function sigmoid(value) {
+  if (value >= 0) return 1 / (1 + Math.exp(-value));
+  const exp = Math.exp(value);
+  return exp / (1 + exp);
+}
+
+function trainedRiskScore(vec) {
+  let logit = trainedClassifier.bias;
+  for (let i = 0; i < 512; i++) logit += vec[i] * trainedClassifier.weights[i];
+  return sigmoid(logit);
+}
+
+async function loadTrainedClassifier() {
+  try {
+    const response = await fetch(TRAINED_CLASSIFIER_URL, { cache: "no-cache" });
+    if (!response.ok) return null;
+    const artifact = await response.json();
+    const validThresholds = artifact.thresholds &&
+      ["low", "medium", "high"].every(name => Number.isFinite(artifact.thresholds[name]));
+    if (artifact.format !== "serene-use-logistic-regression" ||
+        artifact.version !== 1 ||
+        !Array.isArray(artifact.weights) ||
+        artifact.weights.length !== 512 ||
+        !artifact.weights.every(Number.isFinite) ||
+        !Number.isFinite(artifact.bias) ||
+        !validThresholds ||
+        artifact.thresholds.low > artifact.thresholds.medium ||
+        artifact.thresholds.medium > artifact.thresholds.high) {
+      throw new Error("Invalid trained classifier artifact");
+    }
+    artifact.weights = new Float32Array(artifact.weights);
+    return artifact;
+  } catch (error) {
+    console.warn("AI Engine: trained classifier unavailable; using semantic anchors.", error);
+    return null;
+  }
+}
+
 // 7. INDEXEDDB CACHE (anchor embeddings)
 // Bump the version suffix whenever you EDIT existing anchor text — the
 // length checks below only catch anchors being added or removed.
@@ -244,6 +285,7 @@ async function loadAI() {
 
   try {
     aiModel = await use.load();
+    trainedClassifier = await loadTrainedClassifier();
 
     const cached = await idbGet(ANCHOR_CACHE_KEY);
     if (cached && cached.riskLen === RISK_ANCHORS.length && cached.safeLen === SAFE_ANCHORS.length) {
@@ -275,7 +317,7 @@ async function loadAI() {
     try { (await aiModel.embed(["warmup"])).dispose(); } catch (e) { /* non-fatal */ }
 
     document.getElementById("aiDot").className = "status-dot status-ready";
-    document.getElementById("aiText").textContent = "AI Active";
+    document.getElementById("aiText").textContent = trainedClassifier ? "AI Active · Trained" : "AI Active · Anchors";
   } catch (e) {
     console.error("AI Initialization Error:", e);
     document.getElementById("aiText").textContent = "AI Failed (Regex only)";
@@ -331,9 +373,18 @@ async function analyzeRisk(rawText) {
     }
 
     let riskLevel;
+    let finalScore = maxRiskScore;
 
-    // Safe-anchor veto — never overrides an explicit keyword match
-    if (!isRegexMatch && maxSafeScore > maxRiskScore && maxSafeScore > THRESHOLDS.SAFE_VETO) {
+    if (trainedClassifier) {
+      finalScore = trainedRiskScore(vec);
+      const trainedThresholds = trainedClassifier.thresholds;
+      if (isRegexMatch || finalScore >= trainedThresholds.high) riskLevel = "high";
+      else if (finalScore >= trainedThresholds.medium) riskLevel = "medium";
+      else if (finalScore >= trainedThresholds.low) riskLevel = "low";
+      else riskLevel = "none";
+    // Safe-anchor veto — only needed by the anchor fallback. The trained
+    // classifier has learned from non-suicide examples.
+    } else if (!isRegexMatch && maxSafeScore > maxRiskScore && maxSafeScore > THRESHOLDS.SAFE_VETO) {
       console.log(`[AI Veto] Safe:${(maxSafeScore*100).toFixed(1)}% > Risk:${(maxRiskScore*100).toFixed(1)}%`);
       riskLevel = "none";
     } else if (isRegexMatch || maxRiskScore >= THRESHOLDS.HIGH) {
@@ -350,10 +401,10 @@ async function analyzeRisk(rawText) {
     if (riskLevel === "none" && distressFloor) riskLevel = "low";
 
     if (riskLevel !== "none") {
-      console.log(`[AI Alert] Level: ${riskLevel.toUpperCase()} | Score: ${(maxRiskScore*100).toFixed(1)}% | Regex: ${isRegexMatch} | DistressFloor: ${distressFloor}`);
+      console.log(`[AI Alert] Level: ${riskLevel.toUpperCase()} | Score: ${(finalScore*100).toFixed(1)}% | Source: ${trainedClassifier ? "trained" : "anchors"} | Regex: ${isRegexMatch} | DistressFloor: ${distressFloor}`);
     }
 
-    return { finalScore: maxRiskScore, safeScore: maxSafeScore, isRegexMatch, riskLevel, isRisk: riskLevel !== "none", distressFloor };
+    return { finalScore, safeScore: maxSafeScore, isRegexMatch, riskLevel, isRisk: riskLevel !== "none", distressFloor, modelSource: trainedClassifier ? "trained" : "anchors" };
 
   } catch (e) {
     console.warn("AI Inference Error:", e);

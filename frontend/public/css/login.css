@@ -1,0 +1,13 @@
+/* Login-only styles */
+
+.btn-ghost { background: var(--purple-bg); color: var(--purple); border: 1.5px solid var(--border); margin-top: 8px; }
+.btn-ghost:hover { background: #e0e0ff; }
+
+.divider { display: flex; align-items: center; gap: 12px; margin: 13px 0 6px; color: var(--text-dim); font-size: 12px; font-weight: 700; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+#loginForm { display: block; }
+#loggedInState { display: none; text-align: center; }
+.check-icon { font-size: 48px; margin-bottom: 12px; display: block; }
+.signed-in-title { font-size: 18px; font-weight: 800; margin-bottom: 8px; color: var(--text); }
+.signed-in-copy { color: var(--text-muted); font-size: 14px; font-weight: 500; margin-bottom: 24px; }

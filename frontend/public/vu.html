@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Serene Chat - Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/vu.css">
+</head>
+<body class="dashboard-page">
+
+  <div id="loadingOverlay" class="overlay">
+    <div class="spinner"></div>
+    <p class="loading-text">Loading…</p>
+  </div>
+
+  <div class="wrap" id="mainContent">
+
+    <div class="greeting">
+      <div class="greeting-row">
+        <div>
+          <div class="hello">Hello,</div>
+          <h1 id="greetName">there 👋</h1>
+        </div>
+        <div class="avatar-circle">
+          <img id="avatarTop" src="" alt="avatar">
+        </div>
+      </div>
+    </div>
+
+    <div class="user-card">
+      <div class="uc-avatar">
+        <img id="avatarCard" src="" alt="">
+      </div>
+      <div class="uc-info">
+        <div class="uc-name" id="ucName">—</div>
+        <div class="uc-email" id="ucEmail">—</div>
+        <div class="uc-badge"><div class="uc-dot"></div> Verified Member</div>
+      </div>
+      <button class="logout-btn" onclick="signOut()">Sign Out</button>
+    </div>
+
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input id="roomInput" placeholder="Search or enter room code…" onkeydown="if(event.key==='Enter') joinRoom()" />
+    </div>
+
+    <div id="roomsSection">
+      <div class="section-label">Recent Rooms</div>
+      <div id="roomList"></div>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <div class="es-icon">💬</div>
+      <p>No rooms yet!<br>Use the + button to create a room, or search a code above to join one.</p>
+    </div>
+
+  </div>
+
+  <button class="fab" onclick="createRoom()" title="New Room">＋</button>
+
+  <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  
+  <script>
+    /** * INIT DATABASE
+     */
+    const db = firebase.firestore();
+
+    /** * AUTHENTICATION OBSERVER
+     * Checks if the user is logged in, an anonymous guest, or verified.
+     */
+    firebase.auth().onAuthStateChanged((user) => {
+      document.getElementById("loadingOverlay").style.display = "none";
+      
+      // Route protections
+      if (!user) { 
+        window.location.replace("login.html"); 
+        return; 
+      }
+      if (user.isAnonymous) { 
+        window.location.replace("au.html"); 
+        return; 
+      }
+
+      // Populate UI with verified user data
+      const avatarSrc = `https://api.dicebear.com/7.x/personas/svg?seed=${user.uid}`;
+      const name = user.displayName || "User";
+
+      document.getElementById("greetName").textContent = name + " 👋";
+      document.getElementById("avatarTop").src = avatarSrc;
+      document.getElementById("avatarCard").src = avatarSrc;
+      document.getElementById("ucName").textContent = name;
+      document.getElementById("ucEmail").textContent = user.email || "";
+      
+      // Display content and fetch data
+      document.getElementById("mainContent").style.display = "block";
+      loadRooms(user.uid);
+    });
+
+    /** * FETCH SAVED ROOMS
+     * Listens to the Firestore database and generates UI for recent rooms.
+     */
+    function loadRooms(uid) {
+      const list = document.getElementById("roomList");
+      const roomsSection = document.getElementById("roomsSection");
+      const emptyState = document.getElementById("emptyState");
+
+      db.collection("users").doc(uid).collection("saved_rooms")
+        .orderBy("lastVisited", "desc")
+        .limit(15)
+        .onSnapshot((snapshot) => {
+          list.innerHTML = "";
+
+          // Show empty state if no rooms exist
+          if (snapshot.empty) {
+            roomsSection.style.display = "none";
+            emptyState.style.display = "block";
+            return;
+          }
+
+          roomsSection.style.display = "block";
+          emptyState.style.display = "none";
+
+          // Generate UI for each room
+          const emojis = ['🌿','🕊️','🌊','🌸','☀️','🌙','🍃','🦋','🌺','🦚'];
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            const hasName = data.customName && data.customName.trim();
+            const displayName = hasName ? data.customName : `Room: ${doc.id}`;
+            const sub = hasName ? `ID: ${doc.id}` : "Tap to enter";
+            const emoji = emojis[doc.id.charCodeAt(0) % emojis.length];
+
+            const div = document.createElement("div");
+            div.className = "room-item";
+            div.innerHTML = `
+              <div class="room-avatar">${emoji}</div>
+              <div class="room-info">
+                <div class="room-name">${displayName}</div>
+                <div class="room-sub">${sub}</div>
+              </div>
+              <div class="room-actions">
+                <button class="delete-btn" title="Delete Room" onclick="deleteRoom(event,'${doc.id}','${uid}')">🗑</button>
+                <button class="edit-btn" title="Rename Room" onclick="renameRoom(event,'${doc.id}','${uid}')">✎</button>
+                <span class="go-arrow">›</span>
+              </div>`;
+            
+            div.onclick = () => window.location.href = `room.html?room=${doc.id}`;
+            list.appendChild(div);
+          });
+        });
+    }
+
+    /** * RENAME ROOM
+     */
+    function renameRoom(event, roomId, uid) {
+      event.stopPropagation(); // Prevents joining the room when clicking edit
+      const newName = prompt("Enter a new name for this room:");
+      
+      if (newName && newName.trim()) {
+        db.collection("users").doc(uid).collection("saved_rooms").doc(roomId)
+          .update({ customName: newName.trim() })
+          .catch(e => alert("Error: " + e.message));
+      }
+    }
+
+    /** * DELETE ROOM
+     */
+    function deleteRoom(event, roomId, uid) {
+      event.stopPropagation(); // Prevents joining the room when clicking delete
+      
+      if (confirm("Are you sure you want to remove this room from your history?")) {
+        db.collection("users").doc(uid).collection("saved_rooms").doc(roomId)
+          .delete()
+          .catch(e => alert("Error deleting room: " + e.message));
+      }
+    }
+
+    /** * CREATE NEW ROOM
+     */
+    function createRoom() {
+      const id = Math.random().toString(36).substring(2,8) + "-" + Math.random().toString(36).substring(2,6);
+      window.location.href = `room.html?room=${id}`;
+    }
+
+    /** * JOIN EXISTING ROOM
+     */
+    function joinRoom() {
+      const room = document.getElementById("roomInput").value.trim();
+      if (room) {
+        window.location.href = `room.html?room=${room}`;
+      } else {
+        alert("Please enter a room name or code first.");
+      }
+    }
+
+    /** * SIGN OUT
+     */
+    function signOut() {
+      firebase.auth().signOut().then(() => window.location.replace("login.html"));
+    }
+  </script>
+</body>
+</html>

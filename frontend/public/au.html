@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Serene Chat - Guest</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/au.css">
+</head>
+<body class="dashboard-page">
+
+  <div id="loadingOverlay" class="overlay">
+    <div class="spinner"></div>
+    <p class="loading-text">Loading…</p>
+  </div>
+
+  <div class="wrap" id="mainContent">
+
+    <div class="greeting">
+      <div class="greeting-row">
+        <div>
+          <div class="hello">Hello,</div>
+          <h1>Guest 👋</h1>
+        </div>
+        <div class="avatar-circle">
+          <img id="userAvatar" src="" alt="avatar">
+        </div>
+      </div>
+    </div>
+
+    <div class="guest-banner">
+      <div class="guest-banner-icon">👤</div>
+      <div class="guest-banner-text">
+        <strong>You're browsing as a Guest</strong>
+        <span>Sign up to save rooms &amp; chat history</span>
+      </div>
+      <button class="guest-banner-btn" onclick="window.location.href='register.html'">Sign Up</button>
+    </div>
+
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input id="roomInput" placeholder="Enter room name or code to join…" onkeydown="if(event.key==='Enter') joinRoom()" />
+    </div>
+
+    <div class="no-history-note">
+      <div class="note-icon">📂</div>
+      <p>
+        Guest sessions don't save room history.<br>
+        Use the + button to create a new room.
+      </p>
+    </div>
+
+    <div class="exit-link">
+      <a href="#" onclick="signOut(); return false;">Exit guest session</a>
+    </div>
+
+  </div>
+
+  <button class="fab" onclick="createRoom()" title="New Room">＋</button>
+
+  <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  
+  <script>
+    /** * AUTHENTICATION OBSERVER
+     * Checks if the user is a valid anonymous guest.
+     */
+    firebase.auth().onAuthStateChanged((user) => {
+      document.getElementById("loadingOverlay").style.display = "none";
+      
+      // Route protections
+      if (!user) { 
+        window.location.replace("login.html"); 
+        return; 
+      }
+      if (!user.isAnonymous) { 
+        window.location.replace("vu.html"); 
+        return; 
+      }
+
+      // Generate anonymous avatar and show content
+      document.getElementById("userAvatar").src = `https://api.dicebear.com/7.x/personas/svg?seed=${user.uid}`;
+      document.getElementById("mainContent").style.display = "block";
+    });
+
+    /** * CREATE NEW ROOM
+     */
+    function createRoom() {
+      const id = Math.random().toString(36).substring(2,8) + "-" + Math.random().toString(36).substring(2,6);
+      window.location.href = `room.html?room=${id}`;
+    }
+
+    /** * JOIN EXISTING ROOM
+     */
+    function joinRoom() {
+      const room = document.getElementById("roomInput").value.trim();
+      if (room) {
+        window.location.href = `room.html?room=${room}`;
+      } else {
+        alert("Please enter a room name or code first.");
+      }
+    }
+
+    /** * SIGN OUT (Deletes anonymous session)
+     */
+    function signOut() {
+      firebase.auth().signOut().then(() => window.location.replace("login.html"));
+    }
+  </script>
+</body>
+</html>

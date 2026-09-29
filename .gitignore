@@ -67,3 +67,14 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Local Firebase and database debug output
+firebase-debug.log
+pglite-debug.log
+
+# Offline model-training data and generated artifacts
+training-data/
+training-output/
+
+# Local Python environment used only to download Kaggle datasets
+.venv/
