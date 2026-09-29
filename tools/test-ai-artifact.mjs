@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-const filename = new URL("../frontend/public/models/risk-classifier.json", import.meta.url);
+const filename = new URL("../frontend/static/models/risk-classifier.json", import.meta.url);
 const artifact = JSON.parse(await readFile(filename, "utf8"));
 
 if (artifact.format !== "serene-use-logistic-regression" || artifact.version !== 1) {

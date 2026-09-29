@@ -40,7 +40,7 @@ npm install -g firebase-tools
 That is all for normal usage. The model is already available at:
 
 ```text
-frontend/public/models/risk-classifier.json
+frontend/static/models/risk-classifier.json
 ```
 
 The Kaggle dataset is not required because the dataset is only used for teaching the model. After learning, the website uses the learning results stored in the JSON file. Think of the CSV as an exercise book and the JSON model as the studied notes: the website only brings the notes, not the entire book.
@@ -79,7 +79,7 @@ This project uses:
 The dataset is not embedded directly into the website. The dataset is only used during training. The output of the training is a small file:
 
 ```text
-frontend/public/models/risk-classifier.json
+frontend/static/models/risk-classifier.json
 ```
 
 The website only requires that JSON file, not the large CSV file.
@@ -113,7 +113,7 @@ New-Item -ItemType Directory -Force training-data
 kaggle datasets download -d nikhileswarkomati/suicide-watch -p training-data --unzip
 ```
 
-`training-data/` has been ignored by Git. Do not move the CSV to `frontend/public`, because that folder will be published to the website.
+`training-data/` has been ignored by Git. Do not move the CSV to `frontend/static`, because that folder will be published to the website.
 
 ## 3. Install dependencies
 
@@ -149,7 +149,7 @@ The script will:
 4. Convert text to USE embeddings.
 5. Train the classifier for 10 epochs.
 6. Select thresholds based on the validation set.
-7. Write the model to `frontend/public/models/risk-classifier.json`.
+7. Write the model to `frontend/static/models/risk-classifier.json`.
 
 The embedding process may take a few minutes on the CPU. Do not close the terminal until the `Saved browser classifier` message appears.
 
@@ -196,7 +196,7 @@ For 100 rows of training, 80 are used for training and 20 for validation. That i
 The model can be opened at:
 
 ```text
-frontend/public/models/risk-classifier.json
+frontend/static/models/risk-classifier.json
 ```
 
 Parts that are easy to understand:
@@ -528,8 +528,8 @@ Look at the actual URL in the terminal. Firebase might automatically use port `5
 Push the following files:
 
 ```text
-frontend/public/js/ai-detector.js
-frontend/public/models/risk-classifier.json
+frontend/static/js/ai-detector.js
+frontend/static/models/risk-classifier.json
 tools/train-ai.mjs
 tools/test-ai-artifact.mjs
 package.json

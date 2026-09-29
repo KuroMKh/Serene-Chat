@@ -8,7 +8,7 @@ import process from "node:process";
 
 const args = parseArgs(process.argv.slice(2));
 const csvPath = path.resolve(args.csv ?? "training-data/Suicide_Detection.csv");
-const outputPath = path.resolve(args.output ?? "frontend/public/models/risk-classifier.json");
+const outputPath = path.resolve(args.output ?? "frontend/static/models/risk-classifier.json");
 const samplesPerClass = positiveInt(args.samples, 20000);
 const epochs = positiveInt(args.epochs, 20);
 const batchSize = positiveInt(args.batch, 128);

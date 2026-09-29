@@ -16,8 +16,8 @@ User message
 
 Main AI files:
 
-- `frontend/public/js/ai-detector.js` runs the detection in the browser.
-- `frontend/public/models/risk-classifier.json` is the small model resulting from training.
+- `frontend/static/js/ai-detector.js` runs the detection in the browser.
+- `frontend/static/models/risk-classifier.json` is the small model resulting from training.
 - `tools/train-ai.mjs` is used to train the model.
 - `tools/test-ai-artifact.mjs` checks whether the model file is valid.
 - `AI_TRAINING.md` contains the step-by-step training guide.
@@ -71,12 +71,14 @@ The 100 rows were divided into 80 rows for the model to learn and 20 rows for va
 
 ### When to use `npm run ai:train`?
 
-Run that command only when you want to generate a new model. Training will overwrite `frontend/public/models/risk-classifier.json`, so check the new model before committing.
+Run that command only when you want to generate a new model. Training will overwrite `frontend/static/models/risk-classifier.json`, so check the new model before committing.
 
 ## Project structure
 
 ```text
-frontend/public/          Website files deployed to Firebase Hosting
+frontend/src/             Vue components and application code
+frontend/static/          Static assets copied into the production build
+frontend/dist/            Generated Firebase Hosting output
 backend/                  Documentation and backend space
 tools/                    Training and model checking scripts
 training-data/            Local dataset (not pushed to GitHub)
@@ -127,7 +129,7 @@ node_modules/
 
 Therefore, the `Suicide_Detection.csv` file and Kaggle ZIP will not be included during `git add` or `git push`. Each team member needs to download the dataset themselves if they want to retrain.
 
-The `frontend/public/models/risk-classifier.json` file, however, is intentionally pushed to GitHub because it is small and required by the website to run the model.
+The `frontend/static/models/risk-classifier.json` file, however, is intentionally pushed to GitHub because it is small and required by the website to run the model.
 
 ## Before pushing
 
@@ -155,7 +157,7 @@ Check the changes before committing because this repository also includes the mi
 firebase.cmd deploy --only hosting
 ```
 
-Firebase only publishes `frontend/public`. The training dataset will not be published.
+Run `npm run build` before deployment. Firebase publishes only `frontend/dist`; the training dataset is not included.
 
 To download the dataset, train the model, and test the AI results, read [AI_TRAINING.md](AI_TRAINING.md).
 
