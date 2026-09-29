@@ -8,8 +8,14 @@ import process from "node:process";
 
 const args = parseArgs(process.argv.slice(2));
 const csvPath = path.resolve(args.csv ?? "training-data/Suicide_Detection.csv");
-const outputPath = path.resolve(args.output ?? "frontend/public/models/risk-classifier.json");
+const extraCsvPaths = String(args["extra-csv"] ?? "")
+  .split(",")
+  .map(value => value.trim())
+  .filter(Boolean)
+  .map(value => path.resolve(value));
+const outputDirectory = path.resolve(args.output ?? "frontend/public/models/risk");
 const samplesPerClass = positiveInt(args.samples, 20000);
+const extraSamplesPerClass = positiveInt(args["extra-samples"], samplesPerClass);
 const epochs = positiveInt(args.epochs, 20);
 const batchSize = positiveInt(args.batch, 128);
 const embeddingBatchSize = positiveInt(args["embedding-batch"], 128);
@@ -19,6 +25,14 @@ const seed = positiveInt(args.seed, 2026);
 console.log(`Reading ${csvPath}`);
 const samples = await loadBalancedSample(csvPath, samplesPerClass, seed);
 console.log(`Loaded ${samples.positive.length} suicide and ${samples.negative.length} non-suicide posts.`);
+
+for (const [index, extraCsvPath] of extraCsvPaths.entries()) {
+  console.log(`Reading extra dataset ${extraCsvPath}`);
+  const extra = await loadBalancedSample(extraCsvPath, extraSamplesPerClass, seed + index + 1);
+  samples.positive.push(...extra.positive);
+  samples.negative.push(...extra.negative);
+  console.log(`Added ${extra.positive.length} suicide and ${extra.negative.length} non-suicide rows.`);
+}
 
 const rows = shuffle([
   ...samples.positive.map(text => ({ text, label: 1 })),
@@ -37,7 +51,16 @@ const trainY = tf.tensor2d(trainingRows.map(row => row.label), [trainingRows.len
 const validationY = tf.tensor2d(validationRows.map(row => row.label), [validationRows.length, 1]);
 
 const classifier = tf.sequential({
-  layers: [tf.layers.dense({ inputShape: [512], units: 1, activation: "sigmoid" })]
+  layers: [
+    tf.layers.dense({
+      inputShape: [512],
+      units: 64,
+      activation: "relu",
+      kernelRegularizer: tf.regularizers.l2({ l2: 0.0001 })
+    }),
+    tf.layers.dropout({ rate: 0.3 }),
+    tf.layers.dense({ units: 1, activation: "sigmoid" })
+  ]
 });
 classifier.compile({
   optimizer: tf.train.adam(0.01),
@@ -63,40 +86,29 @@ await classifier.fit(trainX, trainY, {
 const probabilities = Array.from(await classifier.predict(validationX).data());
 const labels = validationRows.map(row => row.label);
 const thresholdResult = chooseThreshold(probabilities, labels);
-const [kernel, biasTensor] = classifier.getWeights();
-const weights = Array.from(await kernel.data());
-const bias = (await biasTensor.data())[0];
-
-const artifact = {
-  format: "serene-use-logistic-regression",
-  version: 1,
-  embeddingModel: "@tensorflow-models/universal-sentence-encoder@1.3.3",
+const thresholds = {
+  LOW: round(Math.max(0.15, thresholdResult.threshold * 0.6)),
+  MEDIUM: round(Math.max(0.3, thresholdResult.threshold * 0.8)),
+  HIGH: round(thresholdResult.threshold)
+};
+const metadata = {
   createdAt: new Date().toISOString(),
-  training: {
-    source: "nikhileswarkomati/suicide-watch",
-    trainingSamples: trainingRows.length,
-    validationSamples: validationRows.length,
-    seed,
-    epochs
-  },
-  thresholds: {
-    low: round(Math.max(0.15, thresholdResult.threshold * 0.6)),
-    medium: round(Math.max(0.3, thresholdResult.threshold * 0.8)),
-    high: round(thresholdResult.threshold)
-  },
-  validation: {
-    precision: round(thresholdResult.precision),
-    recall: round(thresholdResult.recall),
-    f2: round(thresholdResult.f2)
-  },
-  weights,
-  bias
+  embeddingModel: "@tensorflow-models/universal-sentence-encoder@1.3.3",
+  sources: [csvPath, ...extraCsvPaths],
+  trainingSamples: trainingRows.length,
+  validationSamples: validationRows.length,
+  seed,
+  epochs,
+  precision: round(thresholdResult.precision),
+  recall: round(thresholdResult.recall),
+  f2: round(thresholdResult.f2)
 };
 
-await mkdir(path.dirname(outputPath), { recursive: true });
-await writeFile(outputPath, `${JSON.stringify(artifact)}\n`, "utf8");
-console.log(`Saved browser classifier to ${outputPath}`);
-console.log(`Validation precision=${artifact.validation.precision} recall=${artifact.validation.recall} F2=${artifact.validation.f2}`);
+await saveBrowserModel(classifier, outputDirectory);
+await writeFile(path.join(outputDirectory, "thresholds.json"), `${JSON.stringify(thresholds, null, 2)}\n`, "utf8");
+await writeFile(path.join(outputDirectory, "training-metadata.json"), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
+console.log(`Saved browser classifier to ${outputDirectory}`);
+console.log(`Validation precision=${metadata.precision} recall=${metadata.recall} F2=${metadata.f2}`);
 
 tf.dispose([trainX, validationX, trainY, validationY]);
 classifier.dispose();
@@ -110,6 +122,8 @@ async function loadBalancedSample(filename, limit, randomSeed) {
   for await (const row of parser) {
     const label = String(row.class ?? "").trim().toLowerCase();
     const text = cleanText(row.text);
+    const reviewed = String(row.reviewed ?? "").trim().toLowerCase();
+    if (reviewed && !["true", "yes", "1"].includes(reviewed)) continue;
     if (!(label in buckets) || text.length < 4) continue;
     seen[label] += 1;
     if (buckets[label].length < limit) buckets[label].push(text);
@@ -123,6 +137,30 @@ async function loadBalancedSample(filename, limit, randomSeed) {
     throw new Error("CSV needs text/class columns and both suicide/non-suicide labels.");
   }
   return { positive: buckets.suicide, negative: buckets["non-suicide"] };
+}
+
+async function saveBrowserModel(model, directory) {
+  let capturedArtifacts;
+  await model.save(tf.io.withSaveHandler(async artifacts => {
+    capturedArtifacts = artifacts;
+    return { modelArtifactsInfo: tf.io.getModelArtifactsInfoForJSON(artifacts) };
+  }));
+
+  if (!capturedArtifacts?.modelTopology || !capturedArtifacts?.weightSpecs || !capturedArtifacts?.weightData) {
+    throw new Error("TensorFlow.js did not produce complete model artifacts.");
+  }
+
+  const modelJson = {
+    modelTopology: capturedArtifacts.modelTopology,
+    format: capturedArtifacts.format ?? "layers-model",
+    generatedBy: capturedArtifacts.generatedBy ?? `TensorFlow.js tfjs-layers ${tf.version.tfjs}`,
+    convertedBy: capturedArtifacts.convertedBy ?? null,
+    weightsManifest: [{ paths: ["weights.bin"], weights: capturedArtifacts.weightSpecs }]
+  };
+
+  await mkdir(directory, { recursive: true });
+  await writeFile(path.join(directory, "model.json"), `${JSON.stringify(modelJson)}\n`, "utf8");
+  await writeFile(path.join(directory, "weights.bin"), Buffer.from(capturedArtifacts.weightData));
 }
 
 async function embedRows(model, inputRows, size, label) {

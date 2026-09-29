@@ -1,5 +1,65 @@
 # Serene Chat AI Training Guide
 
+## Malay/Manglish setup with Mesolitica
+
+Mesolitica is used locally to generate candidate Malay and Manglish variations.
+The Mesolitica model is not shipped to the browser. Only human-reviewed data is
+used to train the small TensorFlow.js classifier used by the website.
+
+### 1. Prepare Python
+
+```powershell
+py -3.11 -m venv .venv
+Set-ExecutionPolicy -Scope Process Bypass
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements-mesolitica.txt
+```
+
+Python 3.12 can also be used when supported by the installed PyTorch version.
+The model is downloaded from Hugging Face on first use.
+
+### 2. Prepare seed data
+
+```powershell
+New-Item -ItemType Directory -Force training-data
+Copy-Item training-data.example/malay-seed.csv training-data/malay-seed.csv
+```
+
+Edit `training-data/malay-seed.csv` and add reviewed examples. Accepted labels
+are `suicide` and `non-suicide`.
+
+### 3. Generate Mesolitica candidates
+
+```powershell
+npm run ai:augment:ms
+```
+
+The result is saved to `training-data/malay-augmented.csv`. Generated rows are
+marked `reviewed=false`. Review their text and labels manually, then change only
+valid rows to `reviewed=true`. The trainer ignores unreviewed rows.
+
+### 4. Train English + Malay/Manglish
+
+Start with a small test:
+
+```powershell
+npm run ai:train -- --samples 50 --extra-csv training-data/malay-augmented.csv --extra-samples 50 --epochs 10
+npm run ai:test
+```
+
+The active output files are:
+
+```text
+frontend/public/models/risk/model.json
+frontend/public/models/risk/weights.bin
+frontend/public/models/risk/thresholds.json
+frontend/public/models/risk/training-metadata.json
+```
+
+These paths match the model URLs loaded by `ai-detector.js`. Keep a separate
+Malay/Manglish test set and never use it for training or threshold selection.
+
 This guide explains how to download the dataset, train the model, view the model, and test it on localhost. The instructions are written for Windows PowerShell.
 
 ## Quickest guide for friends who just pulled

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "ai:augment:ms": "python tools/augment-malay.py",
     "ai:train": "node tools/train-ai.mjs",
     "ai:test": "node tools/test-ai-artifact.mjs"
   },
